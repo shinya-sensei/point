@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ポイント管理QRシステム</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    body { font-family: sans-serif; margin: 20px; text-align: center; }
+    #reader { width: 300px; margin: auto; }
+    .btn { padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    .btn:hover { background: #45a049; }
+    #status { margin-top: 20px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>ポイント管理QRシステム</h1>
+  <div id="step1">
+    <p>会員QRコードをスキャンしてください</p>
+    <div id="reader"></div>
+    <div id="status"></div>
+  </div>
+  <div id="step2" style="display:none;">
+    <p id="customerInfo"></p>
+    <button class="btn" onclick="startPointScan()">ポイント加算QRをスキャン</button>
+  </div>
+  <div id="step3" style="display:none;">
+    <p id="updateStatus"></p>
+  </div>
+
+  <script>
+    const API_BASE = "https://your-cloudflare-worker-url/api"; // Cloudflareの中継URLに置き換え
+
+    function startMemberScan() {
+      const html5QrCode = new Html5Qrcode("reader");
+      html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, qrCodeMessage => {
+        html5QrCode.stop();
+        fetch(API_BASE + "/getCustomer?code=" + encodeURIComponent(qrCodeMessage))
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.name) {
+              document.getElementById("customerInfo").innerText = `あなたは ${data.name} さんですか？`;
+              document.getElementById("step1").style.display = "none";
+              document.getElementById("step2").style.display = "block";
+              window.customerCode = data.code;
+            } else {
+              document.getElementById("status").innerText = "会員情報が見つかりません。";
+              startMemberScan();
+            }
+          });
+      });
+    }
+
+    function startPointScan() {
+      const html5QrCode = new Html5Qrcode("reader");
+      html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, qrCodeMessage => {
+        html5QrCode.stop();
+        const addPoints = parseInt(qrCodeMessage);
+        fetch(API_BASE + "/updatePoints", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: window.customerCode, addPoints: addPoints })
+        })
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById("step2").style.display = "none";
+          document.getElementById("step3").style.display = "block";
+          document.getElementById("updateStatus").innerText = `更新完了！現在のポイント: ${data.points}`;
+        });
+      });
+    }
+
+    startMemberScan();
+  </script>
+</body>
+</html>
