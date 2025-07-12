@@ -1,160 +1,179 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ポイント管理システム</title>
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
-    body { font-family: sans-serif; margin: 20px; text-align: center; }
-    #reader { width: 300px; margin: auto; }
-    .btn { padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; }
-    .btn:hover { background: #45a049; }
-    input[type="text"] { padding: 8px; width: 200px; margin: 10px 0; }
-    #status { margin-top: 20px; font-weight: bold; color: #ff5722; }
-    .customer-btn { margin: 5px 0; display: block; }
+    body {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      background: #f2f2f2;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+
+    .container {
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+
+    input[type="text"], input[type="number"] {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    #searchResult, #statusMessage {
+      margin-top: 15px;
+      font-size: 16px;
+    }
+
+    .member-card {
+      background: #fafafa;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 15px;
+      margin-top: 15px;
+      text-align: left;
+    }
+
+    .member-card p {
+      margin: 5px 0;
+    }
+
+    @media (max-width: 500px) {
+      .container {
+        padding: 15px;
+      }
+      h1 {
+        font-size: 20px;
+      }
+    }
   </style>
 </head>
 <body>
   <h1>ポイント管理システム</h1>
-  <div id="menu">
-    <p>顧客を検索する方法を選んでください</p>
-    <button class="btn" onclick="startQrScan()">📷 QRコードを読み取る</button><br><br>
-    <input type="text" id="memberCodeInput" placeholder="会員番号を入力">
-    <button class="btn" onclick="searchByMemberCode()">🔑 会員番号検索</button><br><br>
-    <input type="text" id="kanaInput" placeholder="カナを入力（部分一致）">
-    <button class="btn" onclick="searchByKana()">🔤 カナ検索</button>
-    <div id="status"></div>
-  </div>
+  <div class="container">
+    <input type="text" id="searchInput" placeholder="カナ or 会員コードを入力">
+    <button onclick="searchMember()">検索</button>
+    <div id="searchResult"></div>
 
-  <div id="step2" style="display:none;">
-    <p id="customerInfo"></p>
-    <button class="btn" onclick="startPointScan()">ポイント加算QRをスキャン</button><br><br>
-    <button class="btn" onclick="goBackToMenu()">🔙 戻る</button>
-  </div>
-
-  <div id="step3" style="display:none;">
-    <p id="updateStatus"></p>
-    <button class="btn" onclick="goBackToMenu()">🔙 戻る</button>
+    <div id="pointSection" style="display:none;">
+      <div class="member-card">
+        <p><strong id="memberName"></strong>（<span id="memberKana"></span>）</p>
+        <p>現在ポイント: <span id="currentPoint"></span> pt</p>
+      </div>
+      <input type="number" id="addPoint" placeholder="加算ポイント（整数）">
+      <button onclick="addPoint()">加算</button>
+      <p id="statusMessage"></p>
+    </div>
   </div>
 
   <script>
-    const API_BASE = "https://point.esthepro-shinya.workers.dev/api";
+    const API_BASE = "https://memberpoint.esthepro-shinya.workers.dev/";
+    let currentMember = null;
 
-    function setStatus(message) {
-      document.getElementById("status").innerText = message;
-    }
+    async function searchMember() {
+      const keyword = document.getElementById("searchInput").value.trim();
+      const resultDiv = document.getElementById("searchResult");
+      const pointSection = document.getElementById("pointSection");
+      const statusMessage = document.getElementById("statusMessage");
+      pointSection.style.display = "none";
+      statusMessage.textContent = "";
 
-    function clearStatus() {
-      document.getElementById("status").innerText = "";
-    }
+      if (!keyword) {
+        resultDiv.innerHTML = "<p>検索ワードを入力してください</p>";
+        return;
+      }
 
-    function showCustomerInfo(data) {
-      clearStatus();
-      if (data && data.name) {
-        document.getElementById("customerInfo").innerText = `あなたは ${data.name} さんですか？`;
-        document.getElementById("menu").style.display = "none";
-        document.getElementById("step2").style.display = "block";
-        window.customerCode = data.code;
-      } else {
-        setStatus("⚠️ 会員情報が見つかりません");
+      resultDiv.innerHTML = "検索中…";
+
+      try {
+        const response = await fetch(`${API_BASE}?keyword=${encodeURIComponent(keyword)}`);
+        const data = await response.json();
+
+        if (data.success && data.member) {
+          currentMember = data.member;
+          document.getElementById("memberName").textContent = currentMember.名前;
+          document.getElementById("memberKana").textContent = currentMember.カナ;
+          document.getElementById("currentPoint").textContent = currentMember.ポイント数;
+          resultDiv.innerHTML = "";
+          pointSection.style.display = "block";
+        } else {
+          resultDiv.innerHTML = "<p>該当する会員が見つかりません</p>";
+        }
+      } catch (err) {
+        console.error(err);
+        resultDiv.innerHTML = "<p>通信エラーが発生しました</p>";
       }
     }
 
-    function fetchWithTimeout(url, options = {}, timeout = 7000) {
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), timeout);
-      return fetch(url, { ...options, signal: controller.signal })
-        .finally(() => clearTimeout(id));
-    }
+    async function addPoint() {
+      const addValue = parseInt(document.getElementById("addPoint").value, 10);
+      const statusMessage = document.getElementById("statusMessage");
 
-    function startQrScan() {
-      setStatus("🔄 QRコード読み取り中…");
-      const html5QrCode = new Html5Qrcode("reader");
-      html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, qrCodeMessage => {
-        html5QrCode.stop();
-        fetchWithTimeout(API_BASE + "/getCustomer?code=" + encodeURIComponent(qrCodeMessage))
-          .then(res => res.json())
-          .then(showCustomerInfo)
-          .catch(err => setStatus("❌ 通信に失敗しました"));
-      });
-    }
+      if (isNaN(addValue)) {
+        statusMessage.textContent = "整数で入力してください";
+        return;
+      }
 
-    function searchByMemberCode() {
-      const code = document.getElementById("memberCodeInput").value;
-      if (!code) { alert("会員番号を入力してください"); return; }
-      setStatus("🔄 検索中です…");
-      fetchWithTimeout(API_BASE + "/getCustomer?code=" + encodeURIComponent(code))
-        .then(res => res.json())
-        .then(showCustomerInfo)
-        .catch(err => setStatus("❌ 通信に失敗しました"));
-    }
+      statusMessage.textContent = "処理中…";
 
-    function searchByKana() {
-      const kana = document.getElementById("kanaInput").value;
-      if (!kana) { alert("カナを入力してください"); return; }
-      setStatus("🔄 検索中です…");
-      fetchWithTimeout(API_BASE + "/searchByKana?kana=" + encodeURIComponent(kana))
-        .then(res => res.json())
-        .then(results => {
-          clearStatus();
-          if (results && results.length > 0) {
-            let list = results.map(r => `<button class='btn customer-btn' onclick='showCustomerInfo(${JSON.stringify(r)})'>${r.name}</button>`).join("");
-            document.getElementById("menu").innerHTML = `<p>該当するお客様:</p>` + list + `<br><button class='btn' onclick='goBackToMenu()'>🔙 戻る</button>`;
-          } else {
-            setStatus("⚠️ 該当するお客様が見つかりません");
-          }
-        })
-        .catch(err => setStatus("❌ 通信に失敗しました"));
-    }
-
-    function startPointScan() {
-      const html5QrCode = new Html5Qrcode("reader");
-      html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, qrCodeMessage => {
-        html5QrCode.stop();
-        setStatus("🔄 ポイント更新中…");
-        fetchWithTimeout(API_BASE + "/updatePoints", {
+      try {
+        const response = await fetch(API_BASE, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code: window.customerCode, addPoints: parseInt(qrCodeMessage) })
-        })
-        .then(res => res.json())
-        .then(data => {
-          clearStatus();
-          document.getElementById("step2").style.display = "none";
-          document.getElementById("step3").style.display = "block";
-          document.getElementById("updateStatus").innerText = `更新完了！現在のポイント: ${data.points}`;
-        })
-        .catch(err => setStatus("❌ ポイント更新に失敗しました"));
-      });
-    }
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            memberCode: currentMember.会員コード,
+            addPoint: addValue
+          })
+        });
 
-    function goBackToMenu() {
-      document.getElementById("menu").style.display = "block";
-      document.getElementById("step2").style.display = "none";
-      document.getElementById("step3").style.display = "none";
-      document.getElementById("menu").innerHTML = `
-        <p>顧客を検索する方法を選んでください</p>
-        <button class='btn' onclick='startQrScan()'>📷 QRコードを読み取る</button><br><br>
-        <input type='text' id='memberCodeInput' placeholder='会員番号を入力'>
-        <button class='btn' onclick='searchByMemberCode()'>🔑 会員番号検索</button><br><br>
-        <input type='text' id='kanaInput' placeholder='カナを入力（部分一致）'>
-        <button class='btn' onclick='searchByKana()'>🔤 カナ検索</button>
-        <div id='status'></div>`;
-    }
+        const data = await response.json();
 
-    // URLパラメータで会員コード自動取得
-    window.addEventListener('load', () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const codeParam = urlParams.get('code');
-      if (codeParam) {
-        setStatus("🔄 自動検索中…");
-        fetchWithTimeout(API_BASE + "/getCustomer?code=" + encodeURIComponent(codeParam))
-          .then(res => res.json())
-          .then(showCustomerInfo)
-          .catch(err => setStatus("❌ 通信に失敗しました"));
+        if (data.success) {
+          statusMessage.textContent = "ポイントを加算しました";
+          searchMember(); // 更新後の再取得
+        } else {
+          statusMessage.textContent = `エラー: ${data.error}`;
+        }
+      } catch (err) {
+        console.error(err);
+        statusMessage.textContent = "通信エラーが発生しました";
       }
-    });
+    }
   </script>
 </body>
 </html>
