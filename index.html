@@ -62,6 +62,10 @@
     .member-card p {
       margin: 5px 0;
     }
+    #qr-reader {
+      width: 100%;
+      margin-top: 15px;
+    }
     @media (max-width: 500px) {
       .container {
         padding: 15px;
@@ -71,18 +75,21 @@
       }
     }
   </style>
+  <script src="https://unpkg.com/html5-qrcode@2.3.7/minified/html5-qrcode.min.js"></script>
 </head>
 <body>
   <h1>ポイント管理システム</h1>
   <div class="container">
     <input type="text" id="searchInput" placeholder="カナ or 会員コードを入力">
     <button onclick="searchMember()">検索</button>
+    <button onclick="startQrScanner()">QRコード読み取り</button>
+    <div id="qr-reader" style="display:none;"></div>
     <div id="searchResult"></div>
 
     <div id="pointSection" style="display:none;">
       <div class="member-card">
         <p><strong id="memberName"></strong>（<span id="memberKana"></span>）</p>
-        <p>現在ポイント: <span id="currentPoint"></span> pt</p>
+        <p>現在ポイント: <span id="currentPoint"></span> pt（最終処理日: <span id="lastUpdate"></span>）</p>
       </div>
       <input type="number" id="addPoint" placeholder="加算ポイント（整数）">
       <button onclick="addPoint()">加算</button>
@@ -93,6 +100,16 @@
   <script>
     const API_BASE = "https://memberpoint.esthepro-shinya.workers.dev/";
     let currentMember = null;
+    let qrScanner = null;
+
+    window.onload = () => {
+      const params = new URLSearchParams(window.location.search);
+      const keyword = params.get('keyword');
+      if (keyword) {
+        document.getElementById("searchInput").value = keyword;
+        searchMember();
+      }
+    };
 
     async function searchMember() {
       const keyword = document.getElementById("searchInput").value.trim();
@@ -118,6 +135,7 @@
           document.getElementById("memberName").textContent = currentMember.名前;
           document.getElementById("memberKana").textContent = currentMember.カナ;
           document.getElementById("currentPoint").textContent = currentMember.ポイント数;
+          document.getElementById("lastUpdate").textContent = formatDateTime(currentMember.最終処理日) || "なし";
           resultDiv.innerHTML = "";
           pointSection.style.display = "block";
         } else {
@@ -160,4 +178,55 @@
         } else {
           statusMessage.textContent = `エラー: ${data.error}`;
         }
-      } catch (e
+      } catch (err) {
+        console.error(err);
+        statusMessage.textContent = "通信エラーが発生しました";
+      }
+    }
+
+    function startQrScanner() {
+      const qrReader = document.getElementById("qr-reader");
+      qrReader.style.display = "block";
+      if (!qrScanner) {
+        qrScanner = new Html5Qrcode("qr-reader");
+      }
+      qrScanner.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: 250
+        },
+        qrCodeMessage => {
+          qrScanner.stop();
+          qrReader.style.display = "none";
+          const url = new URL(qrCodeMessage);
+          const keyword = url.searchParams.get("keyword");
+          if (keyword) {
+            document.getElementById("searchInput").value = keyword;
+            searchMember();
+          } else {
+            alert("QRコードに会員情報が含まれていません");
+          }
+        },
+        errorMessage => {
+          console.log(errorMessage);
+        }
+      ).catch(err => {
+        console.error(err);
+        alert("カメラを起動できませんでした");
+      });
+    }
+
+    function formatDateTime(dateStr) {
+      if (!dateStr) return "";
+      const date = new Date(dateStr);
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, "0");
+      const dd = String(date.getDate()).padStart(2, "0");
+      const hh = String(date.getHours()).padStart(2, "0");
+      const mi = String(date.getMinutes()).padStart(2, "0");
+      return `${yyyy}/${mm}/${dd} ${hh}:${mi}`;
+    }
+  </script>
+</body>
+</html>
