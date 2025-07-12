@@ -67,6 +67,11 @@
     .member-card p {
       margin: 4px 0;
     }
+    #statusMessage {
+      margin-top: 8px;
+      font-size: 14px;
+      color: #d9534f;
+    }
     video {
       width: 100%;
       margin-top: 10px;
@@ -88,11 +93,13 @@
 
   <script>
     const API_BASE = "https://memberpoint.esthepro-shinya.workers.dev/";
+    let currentMember = null;
 
     function searchMember() {
       const keyword = document.getElementById("searchInput").value.trim();
       const resultDiv = document.getElementById("searchResult");
       resultDiv.innerHTML = ""; // クリア
+      currentMember = null;
 
       if (!keyword) {
         resultDiv.innerHTML = "<p>検索ワードを入力してください</p>";
@@ -103,11 +110,14 @@
         .then(response => response.json())
         .then(data => {
           if (data.success && data.member) {
-            const member = data.member;
+            currentMember = data.member;
             resultDiv.innerHTML = `
               <div class="member-card">
-                <p><strong>${member.名前.replace(/さん|様$/, "")}さん</strong></p>
-                <p>ポイント: ${member.ポイント数}pt（最終処理日: ${member.最終処理日 || 'なし'}）</p>
+                <p><strong>${currentMember.名前.replace(/さん|様$/, "")}さん</strong></p>
+                <p>ポイント: ${currentMember.ポイント数}pt（最終処理日: ${currentMember.最終処理日 || 'なし'}）</p>
+                <input type="number" id="addPoint" placeholder="加算ポイント（整数）">
+                <button onclick="addPoint()">加算</button>
+                <p id="statusMessage"></p>
               </div>
             `;
           } else {
@@ -118,6 +128,42 @@
           console.error(err);
           resultDiv.innerHTML = "<p>通信エラーが発生しました</p>";
         });
+    }
+
+    function addPoint() {
+      const addValue = parseInt(document.getElementById("addPoint").value, 10);
+      const statusMessage = document.getElementById("statusMessage");
+
+      if (isNaN(addValue)) {
+        statusMessage.textContent = "整数で入力してください";
+        return;
+      }
+
+      statusMessage.textContent = "処理中…";
+
+      fetch(API_BASE, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          memberCode: currentMember.会員コード,
+          addPoint: addValue
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          statusMessage.textContent = "ポイントを加算しました";
+          searchMember(); // 再取得
+        } else {
+          statusMessage.textContent = `エラー: ${data.error}`;
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        statusMessage.textContent = "通信エラーが発生しました";
+      });
     }
 
     function startCamera() {
