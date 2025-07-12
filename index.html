@@ -10,20 +10,26 @@
     #reader { width: 300px; margin: auto; }
     .btn { padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; }
     .btn:hover { background: #45a049; }
+    input[type="text"] { padding: 8px; width: 200px; margin: 10px 0; }
     #status { margin-top: 20px; font-weight: bold; }
   </style>
 </head>
 <body>
   <h1>ポイント管理QRシステム</h1>
-  <div id="step1">
-    <p>会員QRコードをスキャンしてください</p>
-    <div id="reader"></div>
-    <div id="status"></div>
+  <div id="menu">
+    <p>顧客を検索する方法を選んでください</p>
+    <button class="btn" onclick="startMemberScan()">📷 QRコードを読み取る</button><br><br>
+    <input type="text" id="memberCodeInput" placeholder="会員番号を入力">
+    <button class="btn" onclick="searchByMemberCode()">🔑 会員番号検索</button><br><br>
+    <input type="text" id="kanaInput" placeholder="カナを入力（部分一致）">
+    <button class="btn" onclick="searchByKana()">🔤 カナ検索</button>
   </div>
+
   <div id="step2" style="display:none;">
     <p id="customerInfo"></p>
     <button class="btn" onclick="startPointScan()">ポイント加算QRをスキャン</button>
   </div>
+
   <div id="step3" style="display:none;">
     <p id="updateStatus"></p>
   </div>
@@ -31,24 +37,48 @@
   <script>
     const API_BASE = "https://your-cloudflare-worker-url/api"; // Cloudflareの中継URLに置き換え
 
+    function showCustomerInfo(data) {
+      if (data && data.name) {
+        document.getElementById("customerInfo").innerText = `あなたは ${data.name} さんですか？`;
+        document.getElementById("menu").style.display = "none";
+        document.getElementById("step2").style.display = "block";
+        window.customerCode = data.code;
+      } else {
+        alert("会員情報が見つかりません。再度お試しください。");
+      }
+    }
+
     function startMemberScan() {
       const html5QrCode = new Html5Qrcode("reader");
       html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, qrCodeMessage => {
         html5QrCode.stop();
         fetch(API_BASE + "/getCustomer?code=" + encodeURIComponent(qrCodeMessage))
           .then(res => res.json())
-          .then(data => {
-            if (data && data.name) {
-              document.getElementById("customerInfo").innerText = `あなたは ${data.name} さんですか？`;
-              document.getElementById("step1").style.display = "none";
-              document.getElementById("step2").style.display = "block";
-              window.customerCode = data.code;
-            } else {
-              document.getElementById("status").innerText = "会員情報が見つかりません。";
-              startMemberScan();
-            }
-          });
+          .then(showCustomerInfo);
       });
+    }
+
+    function searchByMemberCode() {
+      const code = document.getElementById("memberCodeInput").value;
+      if (!code) { alert("会員番号を入力してください"); return; }
+      fetch(API_BASE + "/getCustomer?code=" + encodeURIComponent(code))
+        .then(res => res.json())
+        .then(showCustomerInfo);
+    }
+
+    function searchByKana() {
+      const kana = document.getElementById("kanaInput").value;
+      if (!kana) { alert("カナを入力してください"); return; }
+      fetch(API_BASE + "/searchByKana?kana=" + encodeURIComponent(kana))
+        .then(res => res.json())
+        .then(results => {
+          if (results && results.length > 0) {
+            let list = results.map(r => `<button class='btn' onclick='showCustomerInfo(${JSON.stringify(r)})'>${r.name}</button>`).join("<br>");
+            document.getElementById("menu").innerHTML = `<p>該当するお客様:</p>` + list;
+          } else {
+            alert("該当するお客様が見つかりません");
+          }
+        });
     }
 
     function startPointScan() {
@@ -69,8 +99,6 @@
         });
       });
     }
-
-    startMemberScan();
   </script>
 </body>
 </html>
