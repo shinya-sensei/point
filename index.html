@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ポイント管理QRシステム</title>
+  <title>ポイント管理システム</title>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
     body { font-family: sans-serif; margin: 20px; text-align: center; }
@@ -16,10 +16,10 @@
   </style>
 </head>
 <body>
-  <h1>ポイント管理QRシステム</h1>
+  <h1>ポイント管理システム</h1>
   <div id="menu">
     <p>顧客を検索する方法を選んでください</p>
-    <button class="btn" onclick="startMemberScan()">📷 QRコードを読み取る</button><br><br>
+    <button class="btn" onclick="startQrScan()">📷 QRコードを読み取る</button><br><br>
     <input type="text" id="memberCodeInput" placeholder="会員番号を入力">
     <button class="btn" onclick="searchByMemberCode()">🔑 会員番号検索</button><br><br>
     <input type="text" id="kanaInput" placeholder="カナを入力（部分一致）">
@@ -61,15 +61,15 @@
       }
     }
 
-    function fetchWithTimeout(url, options = {}, timeout = 5000) {
+    function fetchWithTimeout(url, options = {}, timeout = 7000) {
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), timeout);
       return fetch(url, { ...options, signal: controller.signal })
         .finally(() => clearTimeout(id));
     }
 
-    function startMemberScan() {
-      setStatus("🔄 検索中です…");
+    function startQrScan() {
+      setStatus("🔄 QRコード読み取り中…");
       const html5QrCode = new Html5Qrcode("reader");
       html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, qrCodeMessage => {
         html5QrCode.stop();
@@ -135,7 +135,7 @@
       document.getElementById("step3").style.display = "none";
       document.getElementById("menu").innerHTML = `
         <p>顧客を検索する方法を選んでください</p>
-        <button class='btn' onclick='startMemberScan()'>📷 QRコードを読み取る</button><br><br>
+        <button class='btn' onclick='startQrScan()'>📷 QRコードを読み取る</button><br><br>
         <input type='text' id='memberCodeInput' placeholder='会員番号を入力'>
         <button class='btn' onclick='searchByMemberCode()'>🔑 会員番号検索</button><br><br>
         <input type='text' id='kanaInput' placeholder='カナを入力（部分一致）'>
@@ -148,7 +148,7 @@
       const urlParams = new URLSearchParams(window.location.search);
       const codeParam = urlParams.get('code');
       if (codeParam) {
-        setStatus("🔄 検索中です…");
+        setStatus("🔄 自動検索中…");
         fetchWithTimeout(API_BASE + "/getCustomer?code=" + encodeURIComponent(codeParam))
           .then(res => res.json())
           .then(showCustomerInfo)
