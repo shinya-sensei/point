@@ -77,13 +77,23 @@
     function startCamera() {
       const video = document.getElementById('video');
       video.style.display = 'block';
-      navigator.mediaDevices.getUserMedia({ video: true })
+      navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { exact: "environment" } }
+      })
+      .then(stream => {
+        video.srcObject = stream;
+      })
+      .catch(err => {
+        console.warn("背面カメラ起動失敗。インカメラに切り替えます:", err);
+        // fallback: 内側カメラ
+        navigator.mediaDevices.getUserMedia({ video: true })
         .then(stream => {
           video.srcObject = stream;
         })
         .catch(err => {
           alert("カメラを起動できません: " + err);
         });
+      });
     }
 
     function searchMember() {
