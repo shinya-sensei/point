@@ -55,6 +55,18 @@
     button:hover {
       background-color: #45a049;
     }
+    .member-card {
+      background: #fafafa;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 12px;
+      text-align: left;
+      font-size: 14px;
+    }
+    .member-card p {
+      margin: 4px 0;
+    }
     video {
       width: 100%;
       margin-top: 10px;
@@ -70,6 +82,7 @@
       <button onclick="searchMember()">検索</button>
       <button onclick="startCamera()">カメラ起動</button>
     </div>
+    <div id="searchResult"></div>
     <video id="video" autoplay playsinline style="display:none;"></video>
   </div>
 
@@ -78,22 +91,32 @@
 
     function searchMember() {
       const keyword = document.getElementById("searchInput").value.trim();
+      const resultDiv = document.getElementById("searchResult");
+      resultDiv.innerHTML = ""; // クリア
+
       if (!keyword) {
-        alert("検索ワードを入力してください");
+        resultDiv.innerHTML = "<p>検索ワードを入力してください</p>";
         return;
       }
+
       fetch(`${API_BASE}?keyword=${encodeURIComponent(keyword)}`)
         .then(response => response.json())
         .then(data => {
           if (data.success && data.member) {
-            alert(`名前: ${data.member.名前}\nポイント: ${data.member.ポイント数}pt\n最終処理日: ${data.member.最終処理日 || 'なし'}`);
+            const member = data.member;
+            resultDiv.innerHTML = `
+              <div class="member-card">
+                <p><strong>${member.名前.replace(/さん|様$/, "")}さん</strong></p>
+                <p>ポイント: ${member.ポイント数}pt（最終処理日: ${member.最終処理日 || 'なし'}）</p>
+              </div>
+            `;
           } else {
-            alert("会員が見つかりません");
+            resultDiv.innerHTML = "<p>会員が見つかりません</p>";
           }
         })
         .catch(err => {
           console.error(err);
-          alert("通信エラーが発生しました");
+          resultDiv.innerHTML = "<p>通信エラーが発生しました</p>";
         });
     }
 
