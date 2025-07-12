@@ -14,12 +14,10 @@
       flex-direction: column;
       align-items: center;
     }
-
     h1 {
       color: #333;
       margin-bottom: 20px;
     }
-
     .container {
       background: #fff;
       padding: 20px;
@@ -28,7 +26,6 @@
       max-width: 400px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
-
     input[type="text"], input[type="number"] {
       width: 100%;
       padding: 12px;
@@ -37,7 +34,6 @@
       border-radius: 8px;
       font-size: 16px;
     }
-
     button {
       width: 100%;
       padding: 12px;
@@ -48,16 +44,13 @@
       font-size: 16px;
       cursor: pointer;
     }
-
     button:hover {
       background-color: #45a049;
     }
-
     #searchResult, #statusMessage {
       margin-top: 15px;
       font-size: 16px;
     }
-
     .member-card {
       background: #fafafa;
       border: 1px solid #ddd;
@@ -66,11 +59,9 @@
       margin-top: 15px;
       text-align: left;
     }
-
     .member-card p {
       margin: 5px 0;
     }
-
     @media (max-width: 500px) {
       .container {
         padding: 15px;
@@ -169,11 +160,4 @@
         } else {
           statusMessage.textContent = `エラー: ${data.error}`;
         }
-      } catch (err) {
-        console.error(err);
-        statusMessage.textContent = "通信エラーが発生しました";
-      }
-    }
-  </script>
-</body>
-</html>
+      } catch (e
