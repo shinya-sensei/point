@@ -22,9 +22,10 @@
       background: #fff;
       padding: 15px;
       border-radius: 10px;
-      width: 100%;
+      width: calc(100% - 40px);
       max-width: 360px;
       box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+      box-sizing: border-box;
     }
     input[type="text"], input[type="number"] {
       width: 100%;
@@ -33,14 +34,16 @@
       border: 1px solid #ccc;
       border-radius: 5px;
       font-size: 14px;
+      box-sizing: border-box;
     }
     .btn-group {
       display: flex;
+      flex-wrap: wrap;
       gap: 6px;
-      margin: 6px 0;
     }
     button {
-      flex: 1;
+      flex: 1 1 48%;
+      box-sizing: border-box;
       padding: 8px;
       background-color: #4CAF50;
       color: white;
@@ -72,16 +75,8 @@
       width: 100%;
       margin-top: 10px;
     }
-    @media (max-width: 500px) {
-      .container {
-        padding: 12px;
-      }
-      h1 {
-        font-size: 18px;
-      }
-    }
   </style>
-  <script src="https://unpkg.com/html5-qrcode@2.3.7/minified/html5-qrcode.min.js"></script>
+  <script src="./html5-qrcode.min.js"></script>
 </head>
 <body>
   <h1>ポイント管理システム</h1>
@@ -196,36 +191,41 @@
       qrReader.style.display = "block";
 
       if (qrScanner) {
-        qrScanner.clear();
+        qrScanner.clear().then(() => {
+          initScanner();
+        }).catch(() => {
+          initScanner();
+        });
+      } else {
+        initScanner();
       }
 
-      qrScanner = new Html5Qrcode("qr-reader");
-      qrScanner.start(
-        { facingMode: "environment" },
-        {
-          fps: 10,
-          qrbox: 200
-        },
-        qrCodeMessage => {
-          qrScanner.stop().then(() => {
-            qrReader.style.display = "none";
-            const url = new URL(qrCodeMessage);
-            const keyword = url.searchParams.get("keyword");
-            if (keyword) {
-              document.getElementById("searchInput").value = keyword;
-              searchMember();
-            } else {
-              alert("QRコードに会員情報が含まれていません");
-            }
-          });
-        },
-        errorMessage => {
-          console.log(errorMessage);
-        }
-      ).catch(err => {
-        console.error(err);
-        alert("カメラを起動できませんでした");
-      });
+      function initScanner() {
+        qrScanner = new Html5Qrcode("qr-reader");
+        qrScanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: 200 },
+          qrCodeMessage => {
+            qrScanner.stop().then(() => {
+              qrReader.style.display = "none";
+              const url = new URL(qrCodeMessage);
+              const keyword = url.searchParams.get("keyword");
+              if (keyword) {
+                document.getElementById("searchInput").value = keyword;
+                searchMember();
+              } else {
+                alert("QRコードに会員情報が含まれていません");
+              }
+            });
+          },
+          errorMessage => {
+            console.log(errorMessage);
+          }
+        ).catch(err => {
+          console.error(err);
+          alert("カメラを起動できませんでした");
+        });
+      }
     }
 
     function formatDateTime(dateStr) {
