@@ -74,6 +74,29 @@
   </div>
 
   <script>
+    const API_BASE = "https://memberpoint.esthepro-shinya.workers.dev/";
+
+    function searchMember() {
+      const keyword = document.getElementById("searchInput").value.trim();
+      if (!keyword) {
+        alert("検索ワードを入力してください");
+        return;
+      }
+      fetch(`${API_BASE}?keyword=${encodeURIComponent(keyword)}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.success && data.member) {
+            alert(`名前: ${data.member.名前}\nポイント: ${data.member.ポイント数}pt\n最終処理日: ${data.member.最終処理日 || 'なし'}`);
+          } else {
+            alert("会員が見つかりません");
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          alert("通信エラーが発生しました");
+        });
+    }
+
     function startCamera() {
       const video = document.getElementById('video');
       video.style.display = 'block';
@@ -85,7 +108,6 @@
       })
       .catch(err => {
         console.warn("背面カメラ起動失敗。インカメラに切り替えます:", err);
-        // fallback: 内側カメラ
         navigator.mediaDevices.getUserMedia({ video: true })
         .then(stream => {
           video.srcObject = stream;
@@ -94,10 +116,6 @@
           alert("カメラを起動できません: " + err);
         });
       });
-    }
-
-    function searchMember() {
-      alert("検索機能はこのまま使えます");
     }
   </script>
 </body>
